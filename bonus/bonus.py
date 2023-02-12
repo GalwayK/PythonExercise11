@@ -10,8 +10,18 @@ class Item:
         self.in_stock = in_stock
         self.headers = headers
 
+    def decrement_item(self):
+        self.in_stock = self.in_stock - 1
+        items_dataframe.loc[items_dataframe["id"] == self.id, "in_stock"] = self.in_stock
+        items_dataframe.to_csv("files/articles.csv", index=False)
+
     def __str__(self):
         return f"Item Name: {self.name} Item Price: {self.price}"
+
+
+class Receipt:
+    def __init__(self, article):
+        self.article = article
 
     def write_items_to_pdf(self):
         pdf = fpdf.FPDF(orientation="P", unit="mm", format="A4")
@@ -21,19 +31,19 @@ class Item:
         pdf.set_font(family="Times", size=14, style="B")
         pdf.set_text_color(0, 0, 0)
 
-        pdf.cell(w=0, h=10, txt=f"Item ordered: {self.name}", ln=1)
+        pdf.cell(w=0, h=10, txt=f"Item ordered: {self.article.name}", ln=1)
 
-        pdf.cell(w=35, h=10, txt=self.headers[0].title(), ln=0, border=1)
-        pdf.cell(w=55, h=10, txt=self.headers[1].title(), ln=0, border=1)
-        pdf.cell(w=40, h=10, txt=self.headers[2].title(), ln=0, border=1)
-        pdf.cell(w=30, h=10, txt=self.headers[3].title(), ln=1, border=1)
+        pdf.cell(w=35, h=10, txt=self.article.headers[0].title(), ln=0, border=1)
+        pdf.cell(w=55, h=10, txt=self.article.headers[1].title(), ln=0, border=1)
+        pdf.cell(w=40, h=10, txt=self.article.headers[2].title(), ln=0, border=1)
+        pdf.cell(w=30, h=10, txt=self.article.headers[3].title(), ln=1, border=1)
 
         pdf.set_font(family="Times", size=14)
 
-        pdf.cell(35, h=10, txt=f"{self.id}", ln=0, border=1)
-        pdf.cell(55, h=10, txt=f"{self.price}", ln=0, border=1)
-        pdf.cell(40, h=10, txt=f"{self.name}", ln=0, border=1)
-        pdf.cell(30, h=10, txt=f"{self.in_stock}", ln=1, border=1)
+        pdf.cell(35, h=10, txt=f"{self.article.id}", ln=0, border=1)
+        pdf.cell(55, h=10, txt=f"{self.article.price}", ln=0, border=1)
+        pdf.cell(40, h=10, txt=f"{self.article.name}", ln=0, border=1)
+        pdf.cell(30, h=10, txt=f"{self.article.in_stock}", ln=1, border=1)
 
         pdf.output("files/pdf.pdf")
 
@@ -48,6 +58,7 @@ def create_items(items_df):
         in_stock = item["in_stock"]
         item = Item(item_id, price, name, in_stock, headers)
         items.append(item)
+
     return items
 
 
@@ -57,13 +68,17 @@ if __name__ == "__main__":
 
     for index, item in enumerate(item_list):
         print(f"{index + 1}. {item}")
+
     while True:
         try:
             selected_index = input("Please select the number of the item you would like: ")
             selected_index = int(selected_index) - 1
             selected_item = item_list[selected_index]
             break
+
         except Exception as error:
             print("Please select a valid item.")
 
-    selected_item.write_items_to_pdf()
+    selected_item.decrement_item()
+    receipt = Receipt(selected_item)
+    receipt.write_items_to_pdf()

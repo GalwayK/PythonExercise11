@@ -33,6 +33,12 @@ class Hotel:
     def __str__(self):
         return f"Hotel ID: {self.hotel_id} Name: {self.name} City: {self.city} Capacity: {self.capacity}"
 
+class HotelSpa(Hotel):
+    def __init__(self, hotel_id, hotel_name, city, capacity, available, is_spa):
+        super().__init__(hotel_id, hotel_name, city, capacity, available)
+        self.is_spa = is_spa
+        print("You have booked a spa.")
+
 
 class Ticket:
     def __init__(self, hotel, user_name):
@@ -42,6 +48,53 @@ class Ticket:
     def generate(self):
         print(f"Hotel {self.hotel.name} booked for {self.user_name}")
 
+
+class SpaTicket:
+    def __init__(self, hotel, user_name):
+        self.hotel = hotel
+        self.user_name = user_name
+
+    def generate(self):
+        print(f"Spa {self.hotel.name} booked for {self.user_name}")
+
+
+class CreditCard:
+    def __init__(self, number, expiration, holder, cvc):
+        self.number = number
+        self.expiration = expiration
+        self.holder = holder.title()
+        self.cvc = cvc
+
+    def __str__(self):
+        return f"{self.number} {self.expiration} {self.holder} {self.cvc}"
+
+    def validate(self):
+        print("Validating card.")
+        card = None
+        try:
+            card = [card for card in card_list if card.holder == self.holder
+                    and f"{card.number}" == f"{self.number}"
+                    and f"{card.cvc}" == f"{self.cvc}"
+                    and f"{card.expiration}" == f"{self.expiration}"][0]
+        except IndexError as error:
+            pass
+        if card is not None:
+            return True
+        else:
+            return False
+
+
+class SecureCard(CreditCard):
+    def check_password(self, given_password):
+        print("Validating password.")
+        password = security_dataframe.loc[security_dataframe["number"] == int(self.number), "password"].squeeze()
+        try:
+            if password == given_password:
+                return True
+            else:
+                return False
+        except Exception as error:
+            return False
 
 def create_hotels():
     hotels = []
@@ -67,6 +120,18 @@ def create_users():
     return users
 
 
+def create_cards():
+    cards = []
+    for index, card in card_dataframe.iterrows():
+        card_number = card["number"]
+        card_expiration = card["expiration"]
+        card_holder = card["holder"]
+        card_cvc = card["cvc"]
+        card = CreditCard(card_number, card_expiration, card_holder, card_cvc)
+        cards.append(card)
+    return cards
+
+
 def print_hotels(hotels):
     hotel_count = 1
     for index, hotel in enumerate(hotels):
@@ -78,9 +143,13 @@ def print_hotels(hotels):
 if __name__ == "__main__":
     hotel_dataframe = pandas.read_csv("files/hotels.csv")
     user_dataframe = pandas.read_csv("files/users.csv")
+    card_dataframe = pandas.read_csv("files/cards.csv")
+    security_dataframe = pandas.read_csv("files/card_security.csv")
+
     user = None
     user_list = create_users()
     hotel_list = create_hotels()
+    card_list = create_cards()
 
     while True:
         try:
@@ -130,19 +199,35 @@ if __name__ == "__main__":
         except Exception as error:
             print("Please enter a valid ID")
 
-    booked_hotel.book()
-    hotel_dataframe.loc[hotel_dataframe["id"] == booked_hotel.hotel_id, "available"] = "no"
-    hotel_dataframe.to_csv("files/hotels.csv", index=False)
+    credit_number = input("Please enter your credit card number: ")
+    credit_expiration = input("Please enter your credit card expiration date: ")
+    credit_holder = input("Please enter the holder of the credit card: ")
+    credit_cvc = input("Please enter the cvc of the credit card: ")
+    credit_password = input("Please enter the credit card password: ")
 
-    full_name = user.get_full_name()
-    current_date = datetime.datetime.now().strftime("%d-%m-%Y")
+    credit_card = SecureCard(credit_number, credit_expiration, credit_holder, credit_cvc)
+    if credit_card.validate() and credit_card.check_password(credit_password):
+        booked_hotel.book()
+        hotel_dataframe.loc[hotel_dataframe["id"] == booked_hotel.hotel_id, "available"] = "no"
+        hotel_dataframe.to_csv("files/hotels.csv", index=False)
 
-    user_hotel_dataframe = pandas.read_csv("files/user_hotel.csv")
-    new_user_hotel_dataframe = pandas.DataFrame({"user_id": [user.user_id],
-                                                 "hotel_id": [booked_hotel.hotel_id],
-                                                 "date": [current_date]})
-    user_hotel_dataframe = pandas.concat([user_hotel_dataframe, new_user_hotel_dataframe])
-    user_hotel_dataframe.to_csv("files/user_hotel.csv", index=False)
+        full_name = user.get_full_name()
+        current_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-    ticket = Ticket(booked_hotel, full_name)
-    ticket.generate()
+        user_hotel_dataframe = pandas.read_csv("files/user_hotel.csv")
+        new_user_hotel_dataframe = pandas.DataFrame({"user_id": [user.user_id],
+                                                     "hotel_id": [booked_hotel.hotel_id],
+                                                     "date": [current_date]})
+        user_hotel_dataframe = pandas.concat([user_hotel_dataframe, new_user_hotel_dataframe])
+        user_hotel_dataframe.to_csv("files/user_hotel.csv", index=False)
+
+        ticket = Ticket(booked_hotel, full_name)
+        ticket.generate()
+        spa_book = input("Do you want to book a spa: ")
+        if spa_book == "yes":
+            spa_hotel = HotelSpa(booked_hotel.hotel_id, booked_hotel.name, booked_hotel.city, booked_hotel.capacity,
+                                 "yes", "yes")
+            spa_ticket = SpaTicket(spa_hotel, full_name)
+            spa_ticket.generate()
+    else:
+        print("Error, card not valid.")
